@@ -17,12 +17,27 @@ class MentionBlot extends Embed {
     const denotationChar = document.createElement("span");
     denotationChar.className = "ql-mention-denotation-char";
     denotationChar.innerHTML = data.denotationChar;
+    // Gboard fix
+    const AndroidBackspaceFix = document.createElement("span");
+    AndroidBackspaceFix.innerHTML = "&nbsp;";
+    // it needs to be "visible" in order to work - so limit to minimal size.
+    AndroidBackspaceFix.setAttribute("style", "display: inline-block; height: 1px; width: 1px; overflow: hidden; ");
+    
     node.appendChild(denotationChar);
     node.innerHTML += data.value;
+
+    // Gboard fix
+    node.appendChild(AndroidBackspaceFix)
     return MentionBlot.setDataValues(node, data);
   }
 
   static setDataValues(element, data) {
+
+    // Gboard fix
+    setTimeout(() => {
+      element.getElementsByTagName("span")[0].setAttribute("contenteditable", "inherit");
+    }, 0);
+
     const domNode = element;
     Object.keys(data).forEach(key => {
       domNode.dataset[key] = data[key];
@@ -32,6 +47,21 @@ class MentionBlot extends Embed {
 
   static value(domNode) {
     return domNode.dataset;
+  }
+
+  // Gboard fix
+  update(mutations, context) {
+    // `childList` mutations are not handled on Quill
+    // see `update` implementation on:
+    // https://github.com/quilljs/quill/blob/master/blots/embed.js
+
+    // any attempt at modifying the inner content will just remove it
+    // (since we cant block any modifiications completely, this is the "lesser evil" / graceful fallback)
+    for (const mutation of mutations) {
+      if (mutation.type === "attributes" && mutation.attributeName === "contenteditable") continue;
+      setTimeout(() => this.remove(), 0);
+      return;
+    }
   }
 
   attach() {
